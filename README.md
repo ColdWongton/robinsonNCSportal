@@ -51,6 +51,11 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
   - **`countries.geojson`**: The master geometry data file used by Leaflet to render the interactive country polygons.
   - **`tiles/TEST/`**: A massive directory containing over 62,000 custom-rendered, high-resolution map tiles specifically for the New Zealand region.
   - **`index.html` & `manifest.json`**: The core framework files for the Single Page Application.
+  - 
+NOTE:
+- for countries.json, this is only here temporarily as the website should later be built to call from a cloud service (cloudflare) so that we can call multiple gadm admin levels when needed. The sizes of these admin levels are too large to store in cpanel.
+- for tiles/TEST/, this is only done for new zealand as this is also temporary. It should later be removed as the tiles will be stored in a cloud service (cloudflare) and later be called from it. 
+
 
 ## 🛠 Tech Stack
 - **Frontend Framework**: React 19
@@ -58,8 +63,9 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 - **Data Visualization**: D3.js
 - **Styling**: Vanilla CSS, Google Fonts (Outfit & Inter), Glassmorphism Patterns
 
-## 🤝 Project Partners & Acknowledgements
-- **The Nature Conservancy** 
-- **LexUnit**
-- **McGill University**
-- **Pomona College**
+## To Do
+What is left to do is primarily the cloud components. 
+
+1. Perform statistical analysis/processes on the points (by country) and join them to the geopackage (polygons) so that once can call upon the data for the data visualizations/popups when one clicks on a country.
+2. Admin Levels - The admin levels will need to be uploaded to the cloud service once it is set up. Afterwards, the website will have to be updated to grab the admin levels when necessary.
+3. Raster Imagery of NCS - Once all the analysis of the study is completed, the points should be convereted into raster imagery, which will then be convereted into tiles. Once they are tiles, they should be uploaded to a cloud service for them to be called when someone clicks on a country.
