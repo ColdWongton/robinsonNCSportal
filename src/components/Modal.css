@@ -1,0 +1,60 @@
+/* src/Modal.css (or add/modify in App.css) */
+
+/* REMOVE the entire .modal-overlay rule */
+/*
+.modal-overlay { ... removed ... }
+*/
+
+/* Modify .modal-content for positioning and remove overlay dependency */
+.modal-content {
+  position: fixed;
+  /* Position relative to viewport */
+  top: 100px;
+  /* Initial position from top */
+  left: 150px;
+  /* Initial position from left */
+  z-index: 1100;
+  /* High z-index to be above map/sidebar */
+
+  background-color: white;
+  padding: 20px 25px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  min-width: 450px;
+  max-width: 500px;
+  /* Adjust max-width as needed */
+  max-height: 85vh;
+  overflow-y: auto;
+  /* Removed position: relative as it's now fixed */
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+  cursor: move;
+  /* Add cursor to indicate draggable area */
+}
+
+/* Keep other modal styles (.modal-title, .modal-close-button, .modal-body) */
+.modal-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.modal-close-button {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 5px;
+  color: #888;
+}
+
+.modal-close-button:hover {
+  color: #333;
+}
