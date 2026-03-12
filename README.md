@@ -9,7 +9,6 @@ Developed in close collaboration with **The Nature Conservancy**, **LexUnit**, *
 - **Interactive Global Map**: Zoom and pan across a custom-built Leaflet map.
 - **Smart Tooltips**: Hovering over fragmented countries (like Canada or Indonesia) dynamically finds and anchors to the largest contiguous landmass, keeping the UI intuitive.
 - **Responsive Data Visualization**: Click any nation to pull up a modal with distinct D3-powered Bar Plots and Pie Charts detailing their specific NCS metrics.
-- **Premium Glassmorphism UI**: Uses a modern translucent design aesthetic that beautifully blends content cards over high-resolution imagery.
 - **Topographic & Custom Tiles**: Users can toggle OpenTopoMap layers and explore custom-rendered high-definition tiles for specific locales (e.g., New Zealand).
 
 ## 🚀 Getting Started
@@ -56,6 +55,3 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 - **LexUnit**
 - **McGill University**
 - **Pomona College**
-
----
-*Developed by the Robinson Lab Group Team.*
