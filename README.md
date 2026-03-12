@@ -66,6 +66,6 @@ NOTE:
 ## To Do
 What is left to do is primarily the cloud components. 
 
-1. Perform statistical analysis/processes on the points (by country) and join them to the geopackage (polygons) so that once can call upon the data for the data visualizations/popups when one clicks on a country.
+1. Perform statistical analysis/processes on the points (by country/per admin level) and join them to the geopackage (polygons) so that one can call upon the data for the data visualizations/popups when one clicks on a country.
 2. Admin Levels - The admin levels will need to be uploaded to the cloud service once it is set up. Afterwards, the website will have to be updated to grab the admin levels when necessary.
 3. Raster Imagery of NCS - Once all the analysis of the study is completed, the points should be convereted into raster imagery, which will then be convereted into tiles. Once they are tiles, they should be uploaded to a cloud service for them to be called when someone clicks on a country.
