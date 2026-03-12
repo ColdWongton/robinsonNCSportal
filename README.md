@@ -1,7 +1,5 @@
 # Robinson Lab Group: Natural Climate Solutions Research Map
 
-![Website Preview](./src/assets/websitebackground.png) <!-- Update later to screenshot if preferred -->
-
 Welcome to the **Robinson Lab Group Natural Climate Solutions Web Portal**. This application provides an interactive, globally aware map to explore how various Natural Climate Solutions (NCS) pathways impact aspects of human well-being, biodiversity, and the environment.
 
 Developed in close collaboration with **The Nature Conservancy**, **LexUnit**, **McGill University**, and **Pomona College**, this portal visualizes complex ecological and policy data.
