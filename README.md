@@ -44,6 +44,14 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
    ```
    *This builds the app for production to the `build` folder, optimizing the build for the best deployment performance.*
 
+## 📂 Directory Overview
+
+- **`/src`**: Contains the React UI components, page layouts, and application styling. (See `/src/README.md` for a deeper technical breakdown of the React architecture).
+- **`/public`**: Houses all static assets that bypass the webpack bundler and are served directly to the browser.
+  - **`countries.geojson`**: The master geometry data file used by Leaflet to render the interactive country polygons.
+  - **`tiles/TEST/`**: A massive directory containing over 62,000 custom-rendered, high-resolution map tiles specifically for the New Zealand region.
+  - **`index.html` & `manifest.json`**: The core framework files for the Single Page Application.
+
 ## 🛠 Tech Stack
 - **Frontend Framework**: React 19
 - **Mapping & Geospatial**: React-Leaflet, Leaflet.js, GeoJSON
