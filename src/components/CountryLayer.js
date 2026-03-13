@@ -1,213 +1,187 @@
-// src/CountryLayer.js - SetView for NZ, fitBounds for other countries
+// src/CountryLayer.js — Renders interactive GeoJSON country/region polygons
+// Supports Admin Level 0 (national), 1 (provincial), and 2 (district)
 import React, { useState, useEffect } from 'react';
-import { GeoJSON, useMap } from 'react-leaflet'; // useMapEvents is now in MapPage
+import { GeoJSON, useMap } from 'react-leaflet';
 import axios from 'axios';
 import L from 'leaflet';
 
-// Receive props from MapPage
-function CountryLayer({ openPopup, toggleNzTiles, setHiddenCountryName, setReappearZoomLevel, hiddenCountryName }) {
+/**
+ * CountryLayer — Fetches and renders GeoJSON polygons on the map.
+ *
+ * Props:
+ *  - openPopup(name)        : opens the data modal for a clicked region
+ *  - toggleNzTiles(bool)    : shows/hides the NZ satellite tile overlay
+ *  - setHiddenCountryName   : hides a polygon after it's been clicked
+ *  - setReappearZoomLevel   : sets the zoom level at which the hidden polygon reappears
+ *  - hiddenCountryName      : currently hidden polygon name (used for styling)
+ *  - adminLevel             : 0, 1, or 2 — determines which GeoJSON file to fetch
+ */
+function CountryLayer({
+    openPopup,
+    toggleNzTiles,
+    setHiddenCountryName,
+    setReappearZoomLevel,
+    hiddenCountryName,
+    adminLevel,
+}) {
     const [geoJsonData, setGeoJsonData] = useState(null);
     const [error, setError] = useState(null);
     const map = useMap();
 
-    // useEffect for fetching GeoJSON data
+    // ── Fetch GeoJSON when adminLevel changes ──────────────────────────
     useEffect(() => {
-        axios.get('/countries.geojson') // Changed to load the newly converted map data
+        setGeoJsonData(null); // Clear stale data immediately
+
+        const fileNames = { 0: 'admin0.geojson', 1: 'admin1.geojson', 2: 'admin2.geojson' };
+        const fetchUrl = `/geojson/${fileNames[adminLevel] || 'admin0.geojson'}`;
+
+        axios.get(fetchUrl)
             .then(response => {
-                if (response.data && response.data.type === 'FeatureCollection' && Array.isArray(response.data.features)) {
-                    setGeoJsonData(response.data); setError(null);
+                if (response.data?.type === 'FeatureCollection' && Array.isArray(response.data.features)) {
+                    setGeoJsonData(response.data);
+                    setError(null);
                 } else {
-                    console.error("Invalid GeoJSON format received:", response.data);
-                    setError("Invalid GeoJSON format received.");
+                    console.error('Invalid GeoJSON format received:', response.data);
+                    setError('Invalid GeoJSON format received.');
                     setGeoJsonData(null);
                 }
             })
-            .catch(fetchError => {
-                console.error("Failed to fetch GeoJSON:", fetchError.message);
-                setError(`Failed to fetch GeoJSON: ${fetchError.message}`);
+            .catch(err => {
+                console.error('Failed to fetch GeoJSON:', err.message);
+                setError(`Failed to fetch GeoJSON: ${err.message}`);
                 setGeoJsonData(null);
             });
-    }, []);
+    }, [adminLevel]);
 
-
-    // --- Styles ---
-    const countryStyle = { fillColor: 'lightblue', fillOpacity: 0.5, color: 'white', weight: 1 };
+    // ── Styles ─────────────────────────────────────────────────────────
+    const countryStyle  = { fillColor: 'lightblue', fillOpacity: 0.5, color: 'white', weight: 1 };
     const highlightStyle = { fillColor: 'yellow', fillOpacity: 0.7, color: '#666', weight: 2 };
-    const hiddenStyle = { opacity: 0, fillOpacity: 0 };
-    // --- End Styles ---
+    const hiddenStyle    = { opacity: 0, fillOpacity: 0 };
 
+    // ── Helper: extract the best display name for a feature ────────────
+    const getFeatureName = (feature) =>
+        feature?.properties?.[`NAME_${adminLevel}`] ||
+        feature?.properties?.COUNTRY ||
+        feature?.properties?.NAME_0 ||
+        feature?.properties?.ADMIN ||
+        feature?.properties?.NAME ||
+        feature?.properties?.name ||
+        'Unnamed Area';
+
+    // ── Style function (hides the clicked polygon) ─────────────────────
     const styleFunction = (feature) => {
-        // Adjust properties check for GADM format
-        const countryIdentifier = feature?.properties?.COUNTRY || feature?.properties?.NAME_0 || feature?.properties?.ADMIN || feature?.properties?.NAME || feature?.properties?.name || 'Unnamed Area';
-        if (countryIdentifier === hiddenCountryName) {
-            return hiddenStyle;
-        }
-        return countryStyle;
+        return getFeatureName(feature) === hiddenCountryName ? hiddenStyle : countryStyle;
     };
 
+    // ── Helper: find the largest polygon in a MultiPolygon ─────────────
+    const getLargestPolygonBounds = (coordinates) => {
+        let maxArea = 0;
+        let bestBounds = null;
+
+        coordinates.forEach(polygonCoords => {
+            const outerRing = polygonCoords[0];
+            const ringLatLngs = outerRing.map(coord => L.latLng(coord[1], coord[0]));
+            const bounds = L.latLngBounds(ringLatLngs);
+
+            const area = Math.abs(bounds.getNorth() - bounds.getSouth()) *
+                         Math.abs(bounds.getEast() - bounds.getWest());
+
+            if (area > maxArea) {
+                maxArea = area;
+                bestBounds = bounds;
+            }
+        });
+
+        return bestBounds;
+    };
+
+    // ── onEachFeature — tooltips, hover, and click behaviour ───────────
     const onEachFeature = (feature, layer) => {
-        const countryIdentifier = feature?.properties?.COUNTRY || feature?.properties?.NAME_0 || feature?.properties?.ADMIN || feature?.properties?.NAME || feature?.properties?.name || 'Unnamed Area';
-        
-        // Handle MultiPolygons specifically to fix tooltip anchoring
+        const name = getFeatureName(feature);
+
+        // Override getCenter for MultiPolygons to anchor tooltip on the largest part
         if (feature?.geometry?.type === 'MultiPolygon' && layer.getCenter) {
             const originalGetCenter = layer.getCenter.bind(layer);
-            
-            // Override getCenter to return the center of the largest polygon
-            layer.getCenter = function() {
+            layer.getCenter = function () {
                 try {
-                    let maxArea = 0;
-                    let bestBounds = null;
-                    const multiCoords = feature.geometry.coordinates;
-
-                    // Iterate over each distinct polygon in the MultiPolygon
-                    multiCoords.forEach(polygonCoords => {
-                        // The first array represents the exterior ring
-                        const outerRing = polygonCoords[0];
-                        // Convert to L.latLng to calculate bounds
-                        const ringLatLngs = outerRing.map(coord => L.latLng(coord[1], coord[0]));
-                        const bounds = L.latLngBounds(ringLatLngs);
-
-                        // Simple area approximation: height x width of bounding box
-                        const latDiff = Math.abs(bounds.getNorth() - bounds.getSouth());
-                        const lngDiff = Math.abs(bounds.getEast() - bounds.getWest());
-                        const area = latDiff * lngDiff;
-
-                        if (area > maxArea) {
-                            maxArea = area;
-                            bestBounds = bounds;
-                        }
-                    });
-
-                    // If we successfully found the largest polygon, return its center
-                    if (bestBounds) {
-                        return bestBounds.getCenter();
-                    }
+                    const best = getLargestPolygonBounds(feature.geometry.coordinates);
+                    if (best) return best.getCenter();
                 } catch (e) {
-                    console.warn(`Error computing center for ${countryIdentifier}, falling back to default.`, e);
+                    console.warn(`Error computing center for ${name}; falling back.`, e);
                 }
-                
-                // Fallback to the original Leaflet behavior if anything goes wrong
                 return originalGetCenter();
             };
         }
 
-        layer.bindTooltip(countryIdentifier);
+        layer.bindTooltip(name);
 
         layer.on({
             mouseover: (e) => {
-                if (countryIdentifier !== hiddenCountryName) {
+                if (name !== hiddenCountryName) {
                     e.target.setStyle(highlightStyle).bringToFront();
                 }
             },
-            mouseout: (e) => {
-                if (countryIdentifier !== hiddenCountryName && geoJsonData) {
+            mouseout: () => {
+                if (name !== hiddenCountryName && geoJsonData) {
                     layer.setStyle(styleFunction(feature));
                 }
             },
             click: (e) => {
-                const currentZoomForReappear = map.getZoom();
+                const currentZoom = map.getZoom();
 
-                // Call setters passed from MapPage to update parent state for hiding polygon
-                if (typeof setHiddenCountryName === 'function') {
-                    setHiddenCountryName(countryIdentifier);
-                }
-                if (typeof setReappearZoomLevel === 'function') {
-                    setReappearZoomLevel(currentZoomForReappear > 1 ? currentZoomForReappear - 2 : 0);
-                }
+                // Hide the clicked polygon and set reappear threshold
+                setHiddenCountryName?.(name);
+                setReappearZoomLevel?.(currentZoom > 1 ? currentZoom - 2 : 0);
 
-                // --- NZ Tiles & Map View Logic ---
-                if (countryIdentifier === 'New Zealand') { // Verify this name matches your GeoJSON
-                    // ===> TARGET COORDINATES FOR YOUR TILE Z=10, X=1000, Y_TMS=651 (Y_XYZ=372) <===
-                    // This LatLng corresponds to the center of tile 10/1000/651 (TMS)
-                    // or 10/1000/372 (XYZ)
-                    const nzTileTargetCenter = L.latLng(-41.108998, 175.95703125);
-                    const nzTargetZoom = 10; // Target zoom level for NZ tiles
-                    // ===> END TARGET COORDINATES <===
-
-                    map.setView(nzTileTargetCenter, nzTargetZoom);
-                    // console.log(`[CountryLayer] Setting view to NZ. Center: ${nzTileTargetCenter.toString()}, Zoom: ${nzTargetZoom}`);
-
-                    // Use a timeout or map event to ensure setView has completed before toggling tiles
-                    map.once('moveend zoomend', () => {
-                        // console.log('[CountryLayer] Map view set for NZ. Current map zoom:', map.getZoom());
-                        if (typeof toggleNzTiles === 'function') {
-                            toggleNzTiles(true); // Tell MapPage to show the NZ tiles layer
-                        }
-                    });
-
+                // ── New Zealand: zoom to tile coverage area ────────────
+                if (name === 'New Zealand') {
+                    const nzCenter = L.latLng(-41.108998, 175.95703125);
+                    map.setView(nzCenter, 10);
+                    map.once('moveend zoomend', () => toggleNzTiles?.(true));
                 } else {
-                    if (typeof toggleNzTiles === 'function') {
-                        toggleNzTiles(false); // Hide NZ tiles if other country clicked
-                    }
-                    // Zoom to other countries using fitBounds to largest polygon
+                    toggleNzTiles?.(false);
+
+                    // Zoom to the largest polygon for MultiPolygon features
                     try {
                         let bestBounds = e.target.getBounds();
-                        const feature = e.target.feature;
+                        const feat = e.target.feature;
 
-                        // If the map feature is a MultiPolygon, we calculate bounds for each distinct polygon
-                        if (feature && feature.geometry && feature.geometry.type === 'MultiPolygon') {
-                            let maxArea = 0;
-                            const multiCoords = feature.geometry.coordinates;
-
-                            multiCoords.forEach(polygonCoords => {
-                                // The first array is always the outer ring of the polygon
-                                const outerRing = polygonCoords[0];
-                                const ringLatLngs = outerRing.map(coord => L.latLng(coord[1], coord[0]));
-                                const bounds = L.latLngBounds(ringLatLngs);
-
-                                // Calculate approximate area of this polygon's bounding box
-                                const latDiff = bounds.getNorth() - bounds.getSouth();
-                                const lngDiff = bounds.getEast() - bounds.getWest();
-                                const area = latDiff * lngDiff;
-
-                                if (area > maxArea) {
-                                    maxArea = area;
-                                    bestBounds = bounds;
-                                }
-                            });
+                        if (feat?.geometry?.type === 'MultiPolygon') {
+                            const largest = getLargestPolygonBounds(feat.geometry.coordinates);
+                            if (largest) bestBounds = largest;
                         }
 
                         map.fitBounds(bestBounds);
-                    } catch (boundsError) {
-                        console.error("Error fitting bounds for other country:", boundsError);
+                    } catch (err) {
+                        console.error('Error fitting bounds:', err);
                     }
                 }
-                // --- End NZ Tiles & Map View Logic ---
 
-                // Open the data popup modal using the identifier
-                if (typeof openPopup === 'function') {
-                    openPopup(countryIdentifier);
-                }
-            }
+                // Open the data modal
+                openPopup?.(name);
+            },
         });
     };
 
-    // This useEffect is now only for handling map interactions and styles, not data loading
-    useEffect(() => {
-        // The styles and onEachFeature function are defined outside this useEffect
-        // and will be passed to the GeoJSON component.
-        // No direct layer manipulation here as GeoJSON component handles it.
-        // The dependency array ensures that if any of these props change,
-        // the GeoJSON component (and thus its internal layers) will re-render.
-    }, [map, openPopup, toggleNzTiles, setHiddenCountryName, setReappearZoomLevel, hiddenCountryName, geoJsonData]);
-
-
-    // --- Rendering Logic ---
+    // ── Render ──────────────────────────────────────────────────────────
     if (error) {
-        return <div style={{ position: 'absolute', top: '10px', left: '50px', zIndex: 1000, background: 'yellow', padding: '10px', border: '1px solid red' }}>Error: {error}</div>;
+        return (
+            <div style={{ position: 'absolute', top: 10, left: 50, zIndex: 1000,
+                          background: 'yellow', padding: 10, border: '1px solid red' }}>
+                Error: {error}
+            </div>
+        );
     }
 
-    return (geoJsonData && typeof geoJsonData === 'object') ? (
+    return geoJsonData ? (
         <GeoJSON
-            key={hiddenCountryName}
+            key={`${adminLevel}-${hiddenCountryName}`}
             data={geoJsonData}
             style={styleFunction}
             onEachFeature={onEachFeature}
             zIndex={10}
         />
-        // MapEventsComponent is now rendered in MapPage
     ) : null;
-    // --- End Rendering ---
 }
 
 export default CountryLayer;
